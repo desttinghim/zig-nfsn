@@ -1,0 +1,11 @@
+.DS_Store
+.idea
+*.log
+tmp/
+conf/
+cred/
+credential.json
+ddns.json
+zig-cache/
+zig-out/
+.gyro/
