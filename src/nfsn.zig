@@ -2,8 +2,10 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Client = @import("requestz").Client;
 const Headers = @import("http").Headers;
+const StatusCode = @import("http").StatusCode;
 const Sha1 = std.crypto.hash.Sha1;
 const Dir = std.fs.Dir;
+const Response = @import("requestz").Response;
 
 const Credentials = struct {
     user: []u8,
@@ -58,19 +60,30 @@ pub const RR = struct {
     }
 };
 
+pub const RRList = struct {
+    alloc: *Allocator,
+    body: []u8,
+    list: []RR,
+
+    pub fn parse(alloc: *Allocator, body: []u8) !@This() {
+        var tokens = std.json.TokenStream.init(body);
+        var rrlist = try std.json.parse([]RR, &tokens, .{ .allocator = alloc });
+        return @This(){
+            .alloc = alloc,
+            .body = body,
+            .list = rrlist,
+        };
+    }
+
+    pub fn deinit(self: @This()) void {
+        std.json.parseFree([]RR, self.list, .{ .allocator = self.alloc });
+        self.alloc.free(self.body);
+    }
+};
+
 pub const RequestError = struct {
     @"error": []u8,
     debug: []u8,
-};
-
-pub const ResultType = enum {
-    err,
-    rr,
-};
-
-pub const RequestResult = union(ResultType) {
-    err: RequestError,
-    rr: []RR,
 };
 
 pub const BodyType = enum { Empty, FormUrlEncoded };
@@ -87,6 +100,44 @@ pub const Body = union(BodyType) {
     }
 };
 
+pub const DNSParam = struct {
+    name: ?[]u8 = null,
+    @"type": ?[]u8 = null,
+    data: ?[]u8 = null,
+};
+
+pub const ParamBuilder = struct {
+    alloc: *Allocator,
+    string: []u8,
+
+    pub fn init(alloc: *Allocator) @This() {
+        return @This(){
+            .alloc = alloc,
+            .string = "",
+        };
+    }
+
+    pub fn add(self: *@This(), name: []const u8, value: []const u8) !void {
+        var new_string = if (self.string.len == 0)
+            try std.fmt.allocPrintZ(self.alloc, "{s}={s}", .{ name, value })
+        else
+            try std.fmt.allocPrintZ(self.alloc, "{s}&{s}={s}", .{ self.string, name, value });
+        self.alloc.free(self.string);
+        self.string = new_string;
+    }
+
+    pub fn build(self: @This()) Body {
+        return switch (self.string.len) {
+            0 => BodyType.Empty,
+            else => .{ .FormUrlEncoded = self.string },
+        };
+    }
+
+    pub fn deinit(self: @This()) void {
+        self.alloc.free(self.string);
+    }
+};
+
 pub const DNS = struct {
     nfsn: *const NFSN,
     domain: []u8,
@@ -98,33 +149,32 @@ pub const DNS = struct {
         };
     }
 
-    pub fn listRRs(self: @This()) ![]RR {
+    pub fn listRRs(self: @This(), opt: DNSParam) !RRList {
         var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/listRRs", .{self.domain});
         defer self.nfsn.alloc.free(uri);
-        const body: Body = BodyType.Empty;
 
-        var result = try self.nfsn.post(uri, body);
-        defer self.nfsn.alloc.free(result);
+        var params = ParamBuilder.init(self.nfsn.alloc);
+        defer params.deinit();
+        if (opt.name) |name| try params.add("name", name);
+        if (opt.@"type") |type_| try params.add("type", type_);
+        if (opt.data) |data| try params.add("data", data);
+        const body: Body = params.build();
 
-        var tokens = std.json.TokenStream.init(result);
-        var rrlist = std.json.parse(RequestResult, &tokens, .{ .allocator = self.nfsn.alloc }) catch |e| {
-            std.log.err("Unexpected input while parsing result: {s}", .{result});
-            return e;
-        };
-        defer std.json.parseFree(RequestResult, rrlist, .{ .allocator = self.nfsn.alloc });
+        var response = try self.nfsn.post(uri, body);
+        defer response.deinit();
 
-        if (rrlist == .err) return error.NFSN_API_ERROR;
-
-        var ret = try self.nfsn.alloc.dupe(RR, rrlist.rr);
-
-        for (ret) |*record| {
-            record.* = try record.dupe(self.nfsn.alloc);
+        switch (response.status) {
+            .Ok => {
+                return RRList.parse(self.nfsn.alloc, try self.nfsn.alloc.dupe(u8, response.body));
+            },
+            else => {
+                std.log.err("Unexpected response: {s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
         }
-
-        return ret;
     }
 
-    pub fn removeRR(self: @This(), name: []const u8, type_: []const u8, data: []const u8) ![]const u8 {
+    pub fn removeRR(self: @This(), name: []const u8, type_: []const u8, data: []const u8) !void {
         var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/removeRR", .{self.domain});
         defer self.nfsn.alloc.free(uri);
 
@@ -132,7 +182,18 @@ pub const DNS = struct {
         defer self.nfsn.alloc.free(body_string);
         var body: Body = Body{ .FormUrlEncoded = body_string };
 
-        return try self.nfsn.post(uri, body);
+        var response = try self.nfsn.post(uri, body);
+        defer response.deinit();
+
+        switch (response.status) {
+            .Ok => {
+                return;
+            },
+            else => {
+                std.log.err("{s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
+        }
     }
 
     pub fn addRR(self: @This(), name: []const u8, type_: []const u8, data: []const u8, ttl: u64) ![]const u8 {
@@ -143,7 +204,18 @@ pub const DNS = struct {
         defer self.nfsn.alloc.free(body_string);
         var body: Body = Body{ .FormUrlEncoded = body_string };
 
-        return try self.nfsn.post(uri, body);
+        var response = try self.nfsn.post(uri, body);
+        defer response.deinit();
+
+        switch (response.status) {
+            .Ok => {
+                return;
+            },
+            else => {
+                std.log.err("{s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
+        }
     }
 };
 
@@ -229,7 +301,7 @@ pub const NFSN = struct {
         return login_string;
     }
 
-    pub fn post(self: *const @This(), uri: []u8, body: Body) ![]u8 {
+    pub fn post(self: *const @This(), uri: []u8, body: Body) !Response {
         var url = try std.fmt.allocPrintZ(self.alloc, "{s}{s}", .{ self.address, uri });
         defer self.alloc.free(url);
 
@@ -247,9 +319,6 @@ pub const NFSN = struct {
             },
         }
 
-        var response = try self.client.post(url, .{ .headers = headers.items() });
-        defer response.deinit();
-
-        return try self.alloc.dupe(u8, response.body);
+        return try self.client.post(url, .{ .headers = headers.items() });
     }
 };

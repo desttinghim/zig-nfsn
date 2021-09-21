@@ -74,12 +74,11 @@ pub fn main() anyerror!void {
     defer alloc.free(currentip);
 
     // Get nfsn dns ip
-    var rrlist = try nfsn.dns(config.domain).listRRs();
-    defer alloc.free(rrlist);
-    defer for (rrlist) |record| record.deinit(alloc);
+    var rrlist = try nfsn.dns(config.domain).listRRs(.{});
+    defer rrlist.deinit();
 
     // std.log.info("{any}", .{rrlist});
-    for (rrlist) |record| {
+    for (rrlist.list) |record| {
         std.log.info("Current record: {s}, {s}, {s}, {}, {s}", .{ record.name, record.@"type", record.data, record.ttl, record.scope });
     }
     // var nfsnRRstring = try nfsn.dns(config.domain).listRRs();
