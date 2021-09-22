@@ -31,19 +31,7 @@ pub fn main() anyerror!void {
 
         var result: []const u8 = "No result";
         defer alloc.free(result);
-        if (std.mem.eql(u8, "member", arg1)) {
-            const arg2 = std.mem.span(argv[2]);
-            const member = nfsn.member(arg2);
-
-            const arg3 = std.mem.span(argv[3]);
-            if (std.mem.eql(u8, "get_accounts", arg3)) {
-                result = try member.get_accounts();
-            } else if (std.mem.eql(u8, "get_sites", arg3)) {
-                result = try member.get_sites();
-            } else {
-                result = "No such method or property";
-            }
-        } else if (std.mem.eql(u8, "account", arg1)) {
+        if (std.mem.eql(u8, "account", arg1)) {
             const arg2 = std.mem.span(argv[2]);
             const account = nfsn.account(arg2);
 
@@ -62,6 +50,49 @@ pub fn main() anyerror!void {
                 result = try account.get_status();
             } else if (std.mem.eql(u8, "get_sites", arg3)) {
                 result = try account.get_sites();
+            } else {
+                result = "No such method or property";
+            }
+        } else if (std.mem.eql(u8, "dns", arg1)) {
+            const arg2 = std.mem.span(argv[2]);
+            const dns = nfsn.dns(arg2);
+
+            const arg3 = std.mem.span(argv[3]);
+            if (std.mem.eql(u8, "get_expire", arg3)) {
+                result = try dns.get_expire();
+            } else if (std.mem.eql(u8, "get_minTTL", arg3)) {
+                result = try dns.get_minTTL();
+            } else if (std.mem.eql(u8, "get_refresh", arg3)) {
+                result = try dns.get_refresh();
+            } else if (std.mem.eql(u8, "get_retry", arg3)) {
+                result = try dns.get_retry();
+            } else if (std.mem.eql(u8, "get_serial", arg3)) {
+                result = try dns.get_serial();
+            } else if (std.mem.eql(u8, "addRR", arg3)) {
+                result = "Not implemented";
+                // result = try dns.addRR();
+            } else if (std.mem.eql(u8, "listRRs", arg3)) {
+                var res = try dns.listRRs(.{});
+                defer res.deinit();
+                result = try alloc.dupe(u8, res.body);
+            } else if (std.mem.eql(u8, "removeRR", arg3)) {
+                result = "Not implemented";
+                // result = try dns.removeRR();
+            } else if (std.mem.eql(u8, "updateSerial", arg3)) {
+                result = "Not implemented";
+                // result = try dns.updateSerial();
+            } else {
+                result = "No such method or property";
+            }
+        } else if (std.mem.eql(u8, "member", arg1)) {
+            const arg2 = std.mem.span(argv[2]);
+            const member = nfsn.member(arg2);
+
+            const arg3 = std.mem.span(argv[3]);
+            if (std.mem.eql(u8, "get_accounts", arg3)) {
+                result = try member.get_accounts();
+            } else if (std.mem.eql(u8, "get_sites", arg3)) {
+                result = try member.get_sites();
             } else {
                 result = "No such method or property";
             }
