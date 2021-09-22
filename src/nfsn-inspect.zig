@@ -104,8 +104,4 @@ pub fn main() anyerror!void {
     } else {
         std.log.info("Not enough arguments.", .{});
     }
-
-    // var account = nfsn.member("desttinghim").account();
-
-    // var a = nfsn.account
 }
