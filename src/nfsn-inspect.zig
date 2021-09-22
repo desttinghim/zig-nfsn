@@ -30,4 +30,8 @@ pub fn main() anyerror!void {
     var accounts = try nfsn.member("desttinghim").get_accounts();
     defer alloc.free(accounts);
     std.log.info("{s}", .{accounts});
+
+    var sites = try nfsn.member("desttinghim").get_sites();
+    defer alloc.free(sites);
+    std.log.info("{s}", .{sites});
 }

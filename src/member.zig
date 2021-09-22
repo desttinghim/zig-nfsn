@@ -41,6 +41,25 @@ pub const Member = struct {
         }
     }
 
+    pub fn get_sites(self: @This()) ![]u8 {
+        var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/member/{s}/sites", .{self.member});
+        defer self.nfsn.alloc.free(uri);
+        const body: Body = .Empty;
+
+        var response = try self.nfsn.get(uri, body);
+        defer response.deinit();
+
+        switch (response.status) {
+            .Ok => {
+                return try self.nfsn.alloc.dupe(u8, response.body);
+            },
+            else => {
+                std.log.err("Unexpected response: {s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
+        }
+    }
+
     pub fn getInfo(self: @This()) ![]u8 {
         @compileError("Member getInfo is unimplemented by NFSN at time of writing. Contact support to get it implemented.");
         var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/member/{s}/getInfo", .{self.member});
