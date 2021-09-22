@@ -7,6 +7,7 @@ const Sha1 = std.crypto.hash.Sha1;
 const Dir = std.fs.Dir;
 const Response = @import("requestz").Response;
 const DNS = @import("dns.zig").DNS;
+const Member = @import("member.zig").Member;
 
 const Credentials = struct {
     user: []u8,
@@ -124,8 +125,12 @@ pub const NFSN = struct {
         self.credentials.deinit(self.alloc);
     }
 
-    pub fn dns(self: @This(), domain: []u8) DNS {
+    pub fn dns(self: @This(), domain: []const u8) DNS {
         return DNS.init(&self, domain);
+    }
+
+    pub fn member(self: @This(), name: []const u8) Member {
+        return Member.init(&self, name);
     }
 
     // Takes a byte from 0-60 and turns it into a alphanumeric character
@@ -176,6 +181,27 @@ pub const NFSN = struct {
         });
 
         return login_string;
+    }
+
+    pub fn get(self: *const @This(), uri: []u8, body: Body) !Response {
+        var url = try std.fmt.allocPrintZ(self.alloc, "{s}{s}", .{ self.address, uri });
+        defer self.alloc.free(url);
+
+        var headers = Headers.init(self.alloc);
+        defer headers.deinit();
+
+        var login_string = try self.get_login_string(uri, body.as_string());
+        defer self.alloc.free(login_string);
+
+        try headers.append("X-NFSN-Authentication", login_string);
+        switch (body) {
+            .Empty => {},
+            .FormUrlEncoded => {
+                try headers.append("Content-Type", "application/x-www-form-urlencoded");
+            },
+        }
+
+        return try self.client.get(url, .{ .headers = headers.items(), .content = body.as_string() });
     }
 
     pub fn post(self: *const @This(), uri: []u8, body: Body) !Response {

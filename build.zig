@@ -12,18 +12,33 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    const exe = b.addExecutable("nfsn-ddns", "src/main.zig");
-    pkgs.addAllTo(exe);
-    exe.setTarget(target);
-    exe.setBuildMode(mode);
-    exe.install();
+    const ddns_exe = b.addExecutable("nfsn-ddns", "src/nfsn-ddns.zig");
+    pkgs.addAllTo(ddns_exe);
+    ddns_exe.setTarget(target);
+    ddns_exe.setBuildMode(mode);
+    ddns_exe.install();
 
-    const run_cmd = exe.run();
-    run_cmd.step.dependOn(b.getInstallStep());
+    const ddns_run_cmd = ddns_exe.run();
+    ddns_run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
-        run_cmd.addArgs(args);
+        ddns_run_cmd.addArgs(args);
     }
 
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+    const ddns_run_step = b.step("run-ddns", "Run the app");
+    ddns_run_step.dependOn(&ddns_run_cmd.step);
+
+    const inspect_exe = b.addExecutable("nfsn-inspect", "src/nfsn-inspect.zig");
+    pkgs.addAllTo(inspect_exe);
+    inspect_exe.setTarget(target);
+    inspect_exe.setBuildMode(mode);
+    inspect_exe.install();
+
+    const inspect_run_cmd = inspect_exe.run();
+    inspect_run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| {
+        inspect_run_cmd.addArgs(args);
+    }
+
+    const inspect_run_step = b.step("run-inspect", "Run the app");
+    inspect_run_step.dependOn(&inspect_run_cmd.step);
 }

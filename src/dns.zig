@@ -65,9 +65,9 @@ pub const RRList = struct {
 
 pub const DNS = struct {
     nfsn: *const NFSN,
-    domain: []u8,
+    domain: []const u8,
 
-    pub fn init(nfsn: *const NFSN, domain: []u8) @This() {
+    pub fn init(nfsn: *const NFSN, domain: []const u8) @This() {
         return @This(){
             .nfsn = nfsn,
             .domain = domain,
