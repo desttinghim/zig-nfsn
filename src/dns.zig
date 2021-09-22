@@ -74,6 +74,103 @@ pub const DNS = struct {
         };
     }
 
+    // Properties
+    pub fn get_expire(self: @This()) ![]u8 {
+        var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/expire", .{self.domain});
+        defer self.nfsn.alloc.free(uri);
+        const body: Body = .Empty;
+
+        var response = try self.nfsn.get(uri, body);
+        defer response.deinit();
+
+        switch (response.status) {
+            .Ok => {
+                return try self.nfsn.alloc.dupe(u8, response.body);
+            },
+            else => {
+                std.log.err("Unexpected response: {s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
+        }
+    }
+
+    pub fn get_minTTL(self: @This()) ![]u8 {
+        var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/minTTL", .{self.domain});
+        defer self.nfsn.alloc.free(uri);
+        const body: Body = .Empty;
+
+        var response = try self.nfsn.get(uri, body);
+        defer response.deinit();
+
+        switch (response.status) {
+            .Ok => {
+                return try self.nfsn.alloc.dupe(u8, response.body);
+            },
+            else => {
+                std.log.err("Unexpected response: {s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
+        }
+    }
+
+    pub fn get_refresh(self: @This()) ![]u8 {
+        var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/refresh", .{self.domain});
+        defer self.nfsn.alloc.free(uri);
+        const body: Body = .Empty;
+
+        var response = try self.nfsn.get(uri, body);
+        defer response.deinit();
+
+        switch (response.status) {
+            .Ok => {
+                return try self.nfsn.alloc.dupe(u8, response.body);
+            },
+            else => {
+                std.log.err("Unexpected response: {s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
+        }
+    }
+
+    pub fn get_retry(self: @This()) ![]u8 {
+        var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/retry", .{self.domain});
+        defer self.nfsn.alloc.free(uri);
+        const body: Body = .Empty;
+
+        var response = try self.nfsn.get(uri, body);
+        defer response.deinit();
+
+        switch (response.status) {
+            .Ok => {
+                return try self.nfsn.alloc.dupe(u8, response.body);
+            },
+            else => {
+                std.log.err("Unexpected response: {s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
+        }
+    }
+
+    pub fn get_serial(self: @This()) ![]u8 {
+        var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/serial", .{self.domain});
+        defer self.nfsn.alloc.free(uri);
+        const body: Body = .Empty;
+
+        var response = try self.nfsn.get(uri, body);
+        defer response.deinit();
+
+        switch (response.status) {
+            .Ok => {
+                return try self.nfsn.alloc.dupe(u8, response.body);
+            },
+            else => {
+                std.log.err("Unexpected response: {s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
+        }
+    }
+
+    // Methods
     pub fn listRRs(self: @This(), opt: DNSParam) !RRList {
         var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/listRRs", .{self.domain});
         defer self.nfsn.alloc.free(uri);

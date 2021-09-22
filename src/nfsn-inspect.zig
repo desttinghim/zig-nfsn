@@ -24,14 +24,4 @@ pub fn main() anyerror!void {
     var nfsn = try NFSN.initFromFile(alloc, &client, credentialsDir, "credentials.json");
     defer nfsn.deinit();
 
-    // var memberGetInfo = try nfsn.member("desttinghim").getInfo();
-    // std.log.info("{s}", .{memberGetInfo});
-
-    var accounts = try nfsn.member("desttinghim").get_accounts();
-    defer alloc.free(accounts);
-    std.log.info("{s}", .{accounts});
-
-    var sites = try nfsn.member("desttinghim").get_sites();
-    defer alloc.free(sites);
-    std.log.info("{s}", .{sites});
 }
