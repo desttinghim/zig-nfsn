@@ -39,6 +39,14 @@ const Config = struct {
     }
 };
 
+pub fn getip(alloc: *Allocator, client: Client) ![]const u8 {
+    var response = try client.get("http://api.ipify.org", .{});
+    defer response.deinit();
+
+    var ip = try alloc.dupe(u8, response.body);
+    return ip;
+}
+
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -74,62 +82,32 @@ pub fn main() anyerror!void {
     defer alloc.free(currentip);
 
     // Get nfsn dns ip
-    var rrlist = try nfsn.dns(config.domain).listRRs(.{});
+    var rrlist = try nfsn.dns(config.domain).listRRs(.{ .name = config.subdomain, .@"type" = config.@"type" });
     defer rrlist.deinit();
 
-    // std.log.info("{any}", .{rrlist});
-    for (rrlist.list) |record| {
+    if (rrlist.list.len == 0) {
+        // record doesn't exist
+        std.log.warn("DNS record does not exist!", .{});
+        try nfsn.dns(config.domain).addRR(config.subdomain, config.@"type", currentip, config.ttl);
+        std.log.notice("Made DNS record for {s}.{s} point to {s}", .{ config.subdomain, config.domain, currentip });
+    } else if (rrlist.list.len > 1) {
+        // too many records?
+        std.log.err("More than one record exists for the DNS address.", .{});
+        return error.TOO_MANY_RECORDS;
+    } else {
+        const record = rrlist.list[0];
         std.log.info("Current record: {s}, {s}, {s}, {}, {s}", .{ record.name, record.@"type", record.data, record.ttl, record.scope });
+
+        if (!std.mem.eql(u8, config.subdomain, record.name)) {
+            return error.SUBDOMAIN_AND_NAME_NO_MATCH;
+        }
+
+        if (!std.mem.eql(u8, currentip, record.data) or config.ttl != record.ttl) {
+            try nfsn.dns(config.domain).removeRR(record.name, record.@"type", record.data);
+            try nfsn.dns(config.domain).addRR(config.subdomain, config.@"type", currentip, config.ttl);
+            std.log.notice("IP for {s}.{s} changed to {s}", .{ config.subdomain, config.domain, currentip });
+        } else {
+            std.log.notice("No DNS update required.", .{});
+        }
     }
-    // var nfsnRRstring = try nfsn.dns(config.domain).listRRs();
-    // defer alloc.free(nfsnRRstring);
-    // std.log.info("{s}", .{nfsnRRstring});
-
-    // var nfsnRRTokens = std.json.TokenStream.init(nfsnRRstring);
-    // var result = std.json.parse(RequestResult, &nfsnRRTokens, .{ .allocator = alloc }) catch {
-    //     std.log.err("{s}", .{nfsnRRstring});
-    //     return error.API;
-    // };
-    // defer std.json.parseFree(RequestResult, result, .{ .allocator = alloc });
-    // var listedip_opt: ?RR = null;
-    // switch (result) {
-    //     ResultType.err => |err| {
-    //         std.log.err("{s}", .{err.@"error"});
-    //         std.log.debug("{s}", .{err.debug});
-    //     },
-    //     ResultType.rr => |nfsnRR| {
-    //         for (nfsnRR) |record| {
-    //             if (std.mem.eql(u8, subdomain, record.name)) {
-    //                 listedip_opt = record;
-    //                 std.log.info("Current record: {s}, {s}, {s}, {}, {s}", .{ record.name, record.@"type", record.data, record.ttl, record.scope });
-    //             }
-    //         }
-
-    //         if (listedip_opt) |listedip| {
-    //             if (!std.mem.eql(u8, currentip, listedip.data) or record_ttl != listedip.ttl or !std.mem.eql(u8, record_type, listedip.@"type")) {
-    //                 var remove = try nfsn_removeRR(alloc, client, listedip.name, listedip.@"type", listedip.data);
-    //                 defer alloc.free(remove);
-    //                 var add = try nfsn_addRR(alloc, client, subdomain, record_type, currentip, record_ttl);
-    //                 defer alloc.free(add);
-    //                 std.log.info("New record: {s}, {s}, {s}, {}", .{ subdomain, record_type, currentip, record_ttl });
-    //                 std.log.notice("IP for {s}.{s} changed to {s}", .{ subdomain, domain, currentip });
-    //             } else {
-    //                 std.log.notice("No DNS update required.", .{});
-    //             }
-    //         } else {
-    //             std.log.warn("DNS record does not exist!", .{});
-    //             var add = try nfsn_addRR(alloc, client, subdomain, record_type, currentip, record_ttl);
-    //             defer alloc.free(add);
-    //             std.log.notice("Made DNS record for {s}.{s} point to {s}", .{ subdomain, domain, currentip });
-    //         }
-    //     },
-    // }
-}
-
-pub fn getip(alloc: *Allocator, client: Client) ![]const u8 {
-    var response = try client.get("http://api.ipify.org", .{});
-    defer response.deinit();
-
-    var ip = try alloc.dupe(u8, response.body);
-    return ip;
 }
