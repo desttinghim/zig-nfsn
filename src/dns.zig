@@ -171,6 +171,32 @@ pub const DNS = struct {
     }
 
     // Methods
+    pub fn addRR(self: @This(), name: []const u8, type_: []const u8, data: []const u8, ttl: u64) !void {
+        var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/addRR", .{self.domain});
+        defer self.nfsn.alloc.free(uri);
+
+        var params = ParamBuilder.init(self.nfsn.alloc);
+        defer params.deinit();
+        try params.add("name", name);
+        try params.add("type", type_);
+        try params.add("data", data);
+        try params.addInt("ttl", ttl);
+        var body: Body = params.build();
+
+        var response = try self.nfsn.post(uri, body);
+        defer response.deinit();
+
+        switch (response.status) {
+            .Ok => {
+                return;
+            },
+            else => {
+                std.log.err("{s}", .{response.body});
+                return error.NFSN_API_ERROR;
+            },
+        }
+    }
+
     pub fn listRRs(self: @This(), opt: DNSParam) !RRList {
         var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/listRRs", .{self.domain});
         defer self.nfsn.alloc.free(uri);
@@ -221,17 +247,10 @@ pub const DNS = struct {
         }
     }
 
-    pub fn addRR(self: @This(), name: []const u8, type_: []const u8, data: []const u8, ttl: u64) !void {
-        var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/addRR", .{self.domain});
+    pub fn updateSerial(self: @This()) !void {
+        var uri = try std.fmt.allocPrintZ(self.nfsn.alloc, "/dns/{s}/updateSerial", .{self.domain});
         defer self.nfsn.alloc.free(uri);
-
-        var params = ParamBuilder.init(self.nfsn.alloc);
-        defer params.deinit();
-        try params.add("name", name);
-        try params.add("type", type_);
-        try params.add("data", data);
-        try params.addInt("ttl", ttl);
-        var body: Body = params.build();
+        var body: Body = .Empty;
 
         var response = try self.nfsn.post(uri, body);
         defer response.deinit();
