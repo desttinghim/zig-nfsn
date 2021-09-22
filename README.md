@@ -13,7 +13,14 @@ For an x86_64 server running linux:
 gyro build -Drelease-safe -Dtarget=x86_64-linux-musl
 ```
 
-The copy `zig-out/bin/nfsn-ddns` to your server.
+Then copy `zig-out/bin/nfsn-ddns` to your server.
+
+If you just want to run the code locally for test purposes, use one of the following:
+
+``` sh
+gyro build run-ddns
+gyro build run-inspect
+```
 
 ## Using
 
