@@ -53,14 +53,14 @@ pub fn main() anyerror!void {
 
     const alloc = &gpa.allocator;
 
+    // Create requestz client
+    var client = try Client.init(alloc);
+    defer client.deinit();
+
+    // Load configuration file
     var configDir: Dir = std.fs.cwd();
     if (std.os.getenv("CONFIG_DIRECTORY")) |config_directory| {
         configDir = try std.fs.openDirAbsolute(config_directory, .{});
-    }
-
-    var credentialsDir: Dir = std.fs.cwd();
-    if (std.os.getenv("CREDENTIALS_DIRECTORY")) |credentials_directory| {
-        credentialsDir = try std.fs.openDirAbsolute(credentials_directory, .{});
     }
 
     var config = Config.load(alloc, configDir, "ddns.json") catch |e| {
@@ -71,8 +71,11 @@ pub fn main() anyerror!void {
 
     std.log.info("DDNS update script running for {s}.{s}", .{ config.subdomain, config.domain });
 
-    var client = try Client.init(alloc);
-    defer client.deinit();
+    // Init the NFSN api object
+    var credentialsDir: Dir = std.fs.cwd();
+    if (std.os.getenv("CREDENTIALS_DIRECTORY")) |credentials_directory| {
+        credentialsDir = try std.fs.openDirAbsolute(credentials_directory, .{});
+    }
 
     var nfsn = try NFSN.initFromFile(alloc, &client, credentialsDir, "credentials.json");
     defer nfsn.deinit();

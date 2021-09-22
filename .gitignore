@@ -5,6 +5,7 @@ tmp/
 conf/
 cred/
 credential.json
+credentials.json
 ddns.json
 zig-cache/
 zig-out/

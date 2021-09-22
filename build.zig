@@ -12,7 +12,7 @@ pub fn build(b: *std.build.Builder) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
     const mode = b.standardReleaseOptions();
 
-    const exe = b.addExecutable("nfs-ddns", "src/main.zig");
+    const exe = b.addExecutable("nfsn-ddns", "src/main.zig");
     pkgs.addAllTo(exe);
     exe.setTarget(target);
     exe.setBuildMode(mode);
