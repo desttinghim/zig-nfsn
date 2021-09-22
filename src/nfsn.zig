@@ -8,6 +8,7 @@ const Dir = std.fs.Dir;
 const Response = @import("requestz").Response;
 const DNS = @import("dns.zig").DNS;
 const Member = @import("member.zig").Member;
+const Account = @import("account.zig").Account;
 
 const Credentials = struct {
     user: []u8,
@@ -131,6 +132,10 @@ pub const NFSN = struct {
 
     pub fn member(self: @This(), name: []const u8) Member {
         return Member.init(&self, name);
+    }
+
+    pub fn account(self: @This(), id: []const u8) Account {
+        return Account.init(&self, id);
     }
 
     // Takes a byte from 0-60 and turns it into a alphanumeric character
